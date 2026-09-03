@@ -8,3 +8,4 @@ faiss-cpu>=1.9,<2
 numpy>=1.26,<3
 sentence-transformers>=3.0,<4
 groq>=1.0,<2
+pytest>=8,<9

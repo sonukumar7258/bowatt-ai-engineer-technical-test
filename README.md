@@ -44,6 +44,12 @@ npm run dev
 Open `http://localhost:5173`. The frontend uses `http://localhost:8787` as its default
 backend URL.
 
+Run the backend tests from the `rest` directory:
+
+```powershell
+python -m pytest -q
+```
+
 ## Configuration
 
 ```env

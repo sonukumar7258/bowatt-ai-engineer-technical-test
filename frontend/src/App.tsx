@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import type { ChangeEvent, SubmitEvent } from 'react'
+import ReactMarkdown from 'react-markdown'
 import './App.css'
 import { streamResearch, uploadSources } from './api'
 
@@ -108,7 +109,7 @@ function App() {
         <h1 id="page-title">Research agent frontend</h1>
         <p>
           Submit a research request and upload any source files the backend should use. The
-          response panel displays streamed markdown as plain source text.
+          response panel renders the streamed markdown as it arrives.
         </p>
       </section>
 
@@ -162,9 +163,13 @@ function App() {
 
       <section className="panel" aria-labelledby="response-heading">
         <h2 id="response-heading">Streaming response</h2>
-        <pre className="markdown-output" aria-live="polite">
-          {markdown || 'Submit a research request to see the markdown answer here.'}
-        </pre>
+        <div className="markdown-output" aria-live="polite">
+          {markdown ? (
+            <ReactMarkdown>{markdown}</ReactMarkdown>
+          ) : (
+            <p>Submit a research request to see the markdown answer here.</p>
+          )}
+        </div>
       </section>
     </main>
   )

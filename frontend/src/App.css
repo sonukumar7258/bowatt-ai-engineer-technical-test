@@ -140,13 +140,49 @@ button:disabled {
   min-height: 260px;
   margin: 0;
   overflow-x: auto;
-  white-space: pre-wrap;
   border: 1px solid #d1d5db;
   border-radius: 12px;
-  background: #0f172a;
-  color: #e5e7eb;
-  font: 0.95rem/1.6 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+  background: #f8fafc;
+  color: #1f2937;
+  line-height: 1.65;
   padding: 18px;
+}
+
+.markdown-output > :first-child {
+  margin-top: 0;
+}
+
+.markdown-output > :last-child {
+  margin-bottom: 0;
+}
+
+.markdown-output h1,
+.markdown-output h2,
+.markdown-output h3 {
+  margin: 24px 0 10px;
+  color: #111827;
+}
+
+.markdown-output p,
+.markdown-output ul,
+.markdown-output ol {
+  margin: 10px 0;
+}
+
+.markdown-output ul,
+.markdown-output ol {
+  padding-left: 24px;
+}
+
+.markdown-output code {
+  border-radius: 4px;
+  background: #e5e7eb;
+  padding: 2px 4px;
+}
+
+.markdown-output a {
+  color: #1d4ed8;
+  overflow-wrap: anywhere;
 }
 
 .file-list {
