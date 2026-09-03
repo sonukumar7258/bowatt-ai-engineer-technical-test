@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from contextlib import asynccontextmanager
 from typing import Annotated
 
 from fastapi import File, FastAPI, UploadFile
@@ -7,9 +8,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse, StreamingResponse
 
 from app.config import Settings, get_settings
-from app.schemas import ResearchRequest, UploadSourcesResponse
+from app.schemas import ResearchRequest, UploadJobResponse
 from app.services.research import ResearchServiceError, start_research
 from app.services.retrieval import SourceIndex, SourceIndexError
+from app.services.upload_queue import UploadQueue
 from app.services.uploads import SourceUploadError, read_text_upload
 from app.services.web_search import search_web
 
@@ -18,10 +20,23 @@ logger = logging.getLogger(__name__)
 
 
 def create_app(settings: Settings | None = None):
-    
     runtime_settings = settings or get_settings()
-    app = FastAPI(title="BoWatt Research Agent API", version="0.1.0")
     source_index = SourceIndex(runtime_settings.data_dir)
+    upload_queue = UploadQueue(source_index)
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        upload_queue.start()
+        try:
+            yield
+        finally:
+            await upload_queue.stop()
+
+    app = FastAPI(
+        title="BoWatt Research Agent API",
+        version="0.1.0",
+        lifespan=lifespan,
+    )
 
     app.add_middleware(
         CORSMiddleware,
@@ -35,10 +50,15 @@ def create_app(settings: Settings | None = None):
     async def health_check():
         return {"status": "ok"}
 
-    @app.post("/api/sources", response_model=UploadSourcesResponse, status_code=201)
+    @app.post(
+        "/api/sources",
+        response_model=UploadJobResponse,
+        response_model_exclude_none=True,
+        status_code=202,
+    )
     async def upload_sources(
         files: Annotated[list[UploadFile] | None, File()] = None,
-    ) -> UploadSourcesResponse | PlainTextResponse:
+    ) -> UploadJobResponse | PlainTextResponse:
         if not files:
             return PlainTextResponse("At least one source file is required.", status_code=400)
 
@@ -49,12 +69,29 @@ def create_app(settings: Settings | None = None):
             except SourceUploadError as error:
                 return PlainTextResponse(error.message, status_code=error.status_code)
 
-        try:
-            await source_index.add_sources(sources)
-        except SourceIndexError:
-            return PlainTextResponse("Unable to index uploaded sources.", status_code=503)
+        job = upload_queue.enqueue(sources)
+        return UploadJobResponse(
+            job_id=job.job_id,
+            status="queued",
+            uploaded=job.uploaded,
+        )
 
-        return UploadSourcesResponse(uploaded=[source.uploaded for source in sources])
+    @app.get(
+        "/api/upload-jobs/{job_id}",
+        response_model=UploadJobResponse,
+        response_model_exclude_none=True,
+    )
+    async def get_upload_job(job_id: str) -> UploadJobResponse | PlainTextResponse:
+        job = upload_queue.get(job_id)
+        if job is None:
+            return PlainTextResponse("Upload job was not found.", status_code=404)
+
+        return UploadJobResponse(
+            job_id=job.job_id,
+            status=job.status,
+            uploaded=job.uploaded,
+            error=job.error,
+        )
 
     @app.post("/api/research", response_model=None)
     async def research(

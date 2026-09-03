@@ -6,7 +6,7 @@ streams a grounded Markdown answer with citations.
 
 ## Current capabilities
 
-- Upload one or more UTF-8 `text/*` source files.
+- Queue one or more UTF-8 `text/*` source files for background indexing.
 - Split and embed source text with `sentence-transformers/all-MiniLM-L6-v2`.
 - Store vectors in FAISS and citation metadata in a local JSON file.
 - Retrieve up to six chunks that meet a cosine-similarity threshold.
@@ -54,7 +54,8 @@ python -m pytest -q
 
 [`test-data/northbridge-microgrid-handbook.md`](test-data/northbridge-microgrid-handbook.md)
 is a fictional handbook used for the local and combined research examples in the
-documentation. Upload it through the frontend to reproduce those examples.
+documentation. Upload it through the frontend and wait for indexing to complete before
+reproducing those examples.
 
 ## Docker
 
@@ -91,6 +92,7 @@ local `.env` file and generated data under `rest/data/` are excluded from Git.
 
 - `GET /health`
 - `POST /api/sources`
+- `GET /api/upload-jobs/{job_id}`
 - `POST /api/research`
 
 See [DOCUMENTATION.md](DOCUMENTATION.md) for request examples, architecture, design

@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import BaseModel, Field, field_validator
 
 
@@ -7,8 +9,11 @@ class UploadedSource(BaseModel):
     type: str
 
 
-class UploadSourcesResponse(BaseModel):
+class UploadJobResponse(BaseModel):
+    job_id: str
+    status: Literal["queued", "processing", "completed", "failed"]
     uploaded: list[UploadedSource]
+    error: str | None = None
 
 
 class ResearchRequest(BaseModel):
