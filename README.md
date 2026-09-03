@@ -9,7 +9,7 @@ streams a grounded Markdown answer with citations.
 - Upload one or more UTF-8 `text/*` source files.
 - Split and embed source text with `sentence-transformers/all-MiniLM-L6-v2`.
 - Store vectors in FAISS and citation metadata in a local JSON file.
-- Retrieve up to four chunks that meet a cosine-similarity threshold.
+- Retrieve up to six chunks that meet a cosine-similarity threshold.
 - Search the web with Tavily in parallel with local retrieval when configured.
 - Generate answers with Groq using only the retrieved local and web evidence.
 - Stream raw Markdown with inline citations and a filtered source list.

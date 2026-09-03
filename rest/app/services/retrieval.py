@@ -57,7 +57,7 @@ class SourceIndex:
                 # Model loading and local file writes are the service boundary for indexing.
                 raise SourceIndexError("Source indexing failed.") from error
 
-    async def search(self, query: str, limit: int = 4) -> list[RetrievedChunk]:
+    async def search(self, query: str, limit: int = 6) -> list[RetrievedChunk]:
         async with self._lock:
             if self._index is None:
                 return []
