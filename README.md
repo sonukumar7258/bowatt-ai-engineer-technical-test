@@ -50,6 +50,12 @@ Run the backend tests from the `rest` directory:
 python -m pytest -q
 ```
 
+## Sample source
+
+[`test-data/northbridge-microgrid-handbook.md`](test-data/northbridge-microgrid-handbook.md)
+is a fictional handbook used for the local and combined research examples in the
+documentation. Upload it through the frontend to reproduce those examples.
+
 ## Docker
 
 With Docker Desktop running, build the backend image from the repository root:
