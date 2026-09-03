@@ -2,10 +2,11 @@ from typing import Annotated
 
 from fastapi import File, FastAPI, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import PlainTextResponse, StreamingResponse
 
 from app.config import Settings, get_settings
-from app.schemas import UploadSourcesResponse
+from app.schemas import ResearchRequest, UploadSourcesResponse
+from app.services.research import ResearchService, ResearchServiceError
 from app.services.retrieval import SourceIndex, SourceIndexError
 from app.services.uploads import SourceUploadError, read_text_upload
 
@@ -49,6 +50,41 @@ def create_app(settings: Settings | None = None):
             return PlainTextResponse("Unable to index uploaded sources.", status_code=503)
 
         return UploadSourcesResponse(uploaded=[source.uploaded for source in sources])
+
+    @app.post("/api/research", response_model=None)
+    async def research(
+        research_request: ResearchRequest,
+    ) -> PlainTextResponse | StreamingResponse:
+        try:
+            chunks = await source_index.search(research_request.request)
+        except SourceIndexError:
+            return PlainTextResponse("Unable to search local sources.", status_code=503)
+
+        if not chunks:
+            return PlainTextResponse(
+                "No relevant local sources were found. Upload a source or try a more specific request.",
+                status_code=400,
+            )
+
+        if not runtime_settings.groq_api_key:
+            return PlainTextResponse(
+                "GROQ_API_KEY is not configured.",
+                status_code=503,
+            )
+
+        service = ResearchService(
+            api_key=runtime_settings.groq_api_key,
+            model=runtime_settings.groq_model,
+        )
+        try:
+            response_stream = await service.start(research_request.request, chunks)
+        except ResearchServiceError:
+            return PlainTextResponse(
+                "Unable to start research generation.",
+                status_code=503,
+            )
+
+        return StreamingResponse(response_stream, media_type="text/markdown")
 
     return app
 

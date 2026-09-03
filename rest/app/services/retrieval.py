@@ -14,6 +14,7 @@ from app.services.uploads import UploadedTextSource
 CHUNK_SIZE = 750
 CHUNK_OVERLAP = 100
 EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
+MIN_SIMILARITY_SCORE = 0.30
 
 
 class SourceIndexError(RuntimeError):
@@ -70,6 +71,8 @@ class SourceIndex:
         matches = []
         for score, vector_id in zip(scores[0], vector_ids[0], strict=True):
             if vector_id == -1:
+                continue
+            if float(score) < MIN_SIMILARITY_SCORE:
                 continue
 
             metadata = self._metadata.get(int(vector_id))
