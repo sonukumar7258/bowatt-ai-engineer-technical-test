@@ -14,8 +14,14 @@ class SourceUploadError(Exception):
     status_code: int
 
 
-async def validate_text_upload(file: UploadFile) -> UploadedSource:
-    """Validate one browser upload without persisting its contents yet."""
+@dataclass
+class UploadedTextSource:
+    uploaded: UploadedSource
+    text: str
+
+
+async def read_text_upload(file: UploadFile) -> UploadedTextSource:
+    """Read and validate one UTF-8 text source."""
 
     filename = file.filename or "unnamed-source"
     content_type = file.content_type or ""
@@ -47,4 +53,7 @@ async def validate_text_upload(file: UploadFile) -> UploadedSource:
             status_code=400,
         )
 
-    return UploadedSource(name=filename, size=len(content), type=content_type)
+    return UploadedTextSource(
+        uploaded=UploadedSource(name=filename, size=len(content), type=content_type),
+        text=text,
+    )

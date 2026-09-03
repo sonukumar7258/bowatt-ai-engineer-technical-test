@@ -6,13 +6,16 @@ from fastapi.responses import PlainTextResponse
 
 from app.config import Settings, get_settings
 from app.schemas import UploadSourcesResponse
-from app.services.uploads import SourceUploadError, validate_text_upload
+from app.services.retrieval import SourceIndex, SourceIndexError
+from app.services.uploads import SourceUploadError, read_text_upload
 
 
 def create_app(settings: Settings | None = None):
     
     runtime_settings = settings or get_settings()
     app = FastAPI(title="BoWatt Research Agent API", version="0.1.0")
+    source_index = SourceIndex(runtime_settings.data_dir)
+    app.state.source_index = source_index
 
     app.add_middleware(
         CORSMiddleware,
@@ -33,14 +36,19 @@ def create_app(settings: Settings | None = None):
         if not files:
             return PlainTextResponse("At least one source file is required.", status_code=400)
 
-        uploaded = []
+        sources = []
         for file in files:
             try:
-                uploaded.append(await validate_text_upload(file))
+                sources.append(await read_text_upload(file))
             except SourceUploadError as error:
                 return PlainTextResponse(error.message, status_code=error.status_code)
 
-        return UploadSourcesResponse(uploaded=uploaded)
+        try:
+            await source_index.add_sources(sources)
+        except SourceIndexError:
+            return PlainTextResponse("Unable to index uploaded sources.", status_code=503)
+
+        return UploadSourcesResponse(uploaded=[source.uploaded for source in sources])
 
     return app
 
