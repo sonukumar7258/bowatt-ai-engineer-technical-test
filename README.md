@@ -10,11 +10,10 @@ streams a grounded Markdown answer with citations.
 - Split and embed source text with `sentence-transformers/all-MiniLM-L6-v2`.
 - Store vectors in FAISS and citation metadata in a local JSON file.
 - Retrieve up to four chunks that meet a cosine-similarity threshold.
-- Generate answers with Groq using only the retrieved evidence.
+- Search the web with Tavily in parallel with local retrieval when configured.
+- Generate answers with Groq using only the retrieved local and web evidence.
 - Stream raw Markdown with inline citations and a filtered source list.
 - Report irrelevant, partially supported, and unsupported requests without guessing.
-
-External web research is not implemented yet.
 
 ## Quick start
 
@@ -50,6 +49,7 @@ backend URL.
 ```env
 GROQ_API_KEY=your-key
 GROQ_MODEL=qwen/qwen3.6-27b
+TAVILY_API_KEY=your-key
 CORS_ORIGINS=http://localhost:5173
 ```
 

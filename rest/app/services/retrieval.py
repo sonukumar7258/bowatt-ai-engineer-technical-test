@@ -69,7 +69,7 @@ class SourceIndex:
                 raise SourceIndexError("Source retrieval failed.") from error
 
         matches = []
-        for score, vector_id in zip(scores[0], vector_ids[0], strict=True):
+        for score, vector_id in zip(scores[0], vector_ids[0]):
             if vector_id == -1:
                 continue
             if float(score) < MIN_SIMILARITY_SCORE:
@@ -132,7 +132,7 @@ class SourceIndex:
         )
         self._index.add_with_ids(vectors, vector_ids)
 
-        for vector_id, chunk in zip(vector_ids, chunks, strict=True):
+        for vector_id, chunk in zip(vector_ids, chunks):
             self._metadata[int(vector_id)] = {"vector_id": int(vector_id), **chunk}
 
         self._next_vector_id += len(chunks)
