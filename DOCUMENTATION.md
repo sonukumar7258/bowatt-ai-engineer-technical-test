@@ -3,7 +3,7 @@
 ## Current status
 
 The repository contains the supplied React frontend and a FastAPI backend in `rest/`.
-The backend currently supports uploading UTF-8 text sources, indexing them locally, and
+The backend currently supports queuing UTF-8 text sources for local indexing and
 searching them alongside external web sources. Groq streams a grounded answer with
 citations to the evidence used.
 
@@ -11,6 +11,7 @@ Implemented endpoints:
 
 - `GET /health`
 - `POST /api/sources`
+- `GET /api/upload-jobs/{job_id}`
 - `POST /api/research`
 
 ## Setup
@@ -62,17 +63,18 @@ Run the automated tests from `rest/`:
 python -m pytest -q
 ```
 
-The automated suite currently contains 10 tests. It covers text chunking,
-research-request validation, upload validation, evidence labels, and source-list
-filtering. Groq and Tavily were checked with manual requests instead of automated live
-tests so that the test suite does not require API keys or use credits.
+The automated suite currently contains 15 tests. It covers text chunking,
+research-request validation, upload validation, evidence labels, source-list filtering,
+and upload-job queue behavior. Groq and Tavily were checked with manual requests instead
+of automated live tests so that the test suite does not require API keys or use credits.
 
 ## Sample source
 
 The repository includes
 [`test-data/northbridge-microgrid-handbook.md`](test-data/northbridge-microgrid-handbook.md),
 a fictional microgrid handbook used for the local and combined research examples below.
-Upload it through the frontend to reproduce those examples. Its organizations,
+Upload it through the frontend and wait for indexing to complete before reproducing those
+examples. Its organizations,
 equipment, measurements, and procedures are invented and are only for testing.
 
 ## Docker
@@ -107,6 +109,8 @@ that local and external research requests complete successfully.
 
 `POST /api/sources` accepts one or more files under the repeated multipart field
 `files`. The current implementation accepts non-empty UTF-8 `text/*` files up to 5 MiB.
+It validates and reads the batch, then returns `202 Accepted` while one background worker
+indexes the batch.
 
 ```powershell
 curl.exe -X POST "http://127.0.0.1:8787/api/sources" `
@@ -117,6 +121,29 @@ Example response:
 
 ```json
 {
+  "job_id": "0d8e21f6b1ec4ab9a1f4fd8a91f076c1",
+  "status": "queued",
+  "uploaded": [
+    {
+      "name": "notes.md",
+      "size": 2048,
+      "type": "text/markdown"
+    }
+  ]
+}
+```
+
+### Check upload status
+
+`GET /api/upload-jobs/{job_id}` returns the current status for a queued upload batch.
+The available statuses are `queued`, `processing`, `completed`, and `failed`.
+The supplied frontend is unchanged for this backend-only bonus, so it does not poll this
+endpoint.
+
+```json
+{
+  "job_id": "0d8e21f6b1ec4ab9a1f4fd8a91f076c1",
+  "status": "completed",
   "uploaded": [
     {
       "name": "notes.md",
@@ -256,6 +283,8 @@ The backend uses a small retrieval-augmented generation flow:
 ```text
 text upload
     -> validation
+    -> in-memory upload queue
+    -> one indexing worker
     -> overlapping chunks
     -> local embeddings
     -> FAISS index + JSON metadata
@@ -269,9 +298,11 @@ research request
 
 ### Source ingestion
 
-Uploaded files are validated before indexing. Text is split into chunks of roughly 750
-characters with 100 characters of overlap. The splitter prefers a newline or space near
-the end of a chunk so that it does not cut every passage at an arbitrary character.
+Uploaded files are validated before queueing. Each selected set of files becomes one
+batch job. A single worker takes jobs in submission order and indexes one batch at a time.
+Text is split into chunks of roughly 750 characters with 100 characters of overlap. The
+splitter prefers a newline or space near the end of a chunk so that it does not cut every
+passage at an arbitrary character.
 
 The chunks are embedded with `sentence-transformers/all-MiniLM-L6-v2`. Embeddings are
 normalized and stored in a native FAISS `IndexFlatIP` index. With normalized vectors,
@@ -344,9 +375,14 @@ The API reports errors before expensive work where possible. Examples include:
   relevant evidence.
 - `413` for files larger than 5 MiB.
 - `415` for unsupported file content types.
+- `404` for an unknown upload job ID.
 - `422` for a missing, blank, or invalid research request.
-- `503` when neither retrieval path is usable, or for indexing, Groq configuration, and
-  Groq startup failures.
+- `503` when neither retrieval path is usable, or for Groq configuration and Groq startup
+  failures.
+
+An error raised while a queued batch is being indexed changes that job's status to
+`failed`. Its status response includes `Unable to index uploaded sources.` in the
+`error` field.
 
 If the Groq connection fails after streaming has begun, the response includes a short
 warning because the HTTP status can no longer be changed.
@@ -368,6 +404,11 @@ evidence can still be used. The endpoint returns an error only when neither path
 usable evidence. This partial-failure behavior is more useful than failing the entire
 request because one optional source is unavailable.
 
+The upload queue is intentionally in memory and has one worker. This keeps the bonus
+feature small and makes status polling easy to inspect. Pending jobs and their status are
+lost if the backend restarts, and the queue has no retries, cancellation, persistence, or
+progress percentage.
+
 FAISS and JSON metadata keep the project easy to run and inspect. This is suitable for a
 single-process technical test, but concurrent application replicas could write to the
 same files unsafely. A production deployment will need a shared vector store and
@@ -387,8 +428,8 @@ identify whether a poor answer came from missing evidence or from generation.
 
 Completed checks:
 
-- The automated suite passed 10 tests for chunking, request validation, upload
-  validation, prompt evidence labels, and source-list filtering.
+- The automated suite passed 15 tests for chunking, request validation, upload
+  validation, prompt evidence labels, source-list filtering, and queue processing.
 - Manual local research verified the BG-12 start and stop thresholds against the
   Northbridge handbook.
 - Manual external research verified web citations and an official Python documentation
@@ -437,9 +478,7 @@ The remaining work is prioritized as follows:
 5. Evaluate an MCP-compatible external-source adapter if the application later needs to
    connect to several research tools or source providers. The direct Tavily HTTP client
    remains simpler for the current single-provider implementation.
-6. Add upload queueing if uploads become larger or sustained concurrent ingestion makes
-   synchronous indexing slow. A queued version will need job status and restart handling.
-7. Move FAISS and metadata to shared services if the application needs multiple backend
+6. Move FAISS and metadata to shared services if the application needs multiple backend
    replicas or separate user workspaces.
-8. Add request tracing and basic latency metrics for embedding, local retrieval, Tavily,
+7. Add request tracing and basic latency metrics for embedding, local retrieval, Tavily,
    time to first token, and total generation time.
