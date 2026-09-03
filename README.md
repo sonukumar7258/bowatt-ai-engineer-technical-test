@@ -33,7 +33,7 @@ Add a Groq API key to `rest/.env`, then start the API:
 uvicorn app.main:app --reload --port 8787
 ```
 
-Start the frontend in a second terminal:
+From the repository root, start the frontend in a second terminal:
 
 ```powershell
 cd frontend
@@ -50,6 +50,25 @@ Run the backend tests from the `rest` directory:
 python -m pytest -q
 ```
 
+## Docker
+
+With Docker Desktop running, build the backend image from the repository root:
+
+```powershell
+docker build -t bowatt-research-api ./rest
+```
+
+Run the container with the local environment file and a mounted data directory:
+
+```powershell
+New-Item -ItemType Directory -Force .\rest\data | Out-Null
+docker run --rm -p 8787:8787 --env-file .\rest\.env -v "${PWD}\rest\data:/app/data" bowatt-research-api
+```
+
+The frontend can still run locally with `npm run dev` and connect to the container at
+`http://localhost:8787`. The first upload or local research request can take longer while
+the embedding model downloads inside the container.
+
 ## Configuration
 
 ```env
@@ -59,7 +78,8 @@ TAVILY_API_KEY=your-key
 CORS_ORIGINS=http://localhost:5173
 ```
 
-The local `.env` file and generated data under `rest/data/` are excluded from Git.
+`TAVILY_API_KEY` is optional; without it, research uses uploaded local sources only. The
+local `.env` file and generated data under `rest/data/` are excluded from Git.
 
 ## API
 
